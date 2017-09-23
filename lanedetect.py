@@ -96,9 +96,10 @@ def CalibrateCamera():
 def main():
     
     if len( sys.argv ) > 1:
-        # We'll perform camera calibration:
-        print( "Will be performing camera calibration" )
-        CalibrateCamera()
+        # Check if we'll be performing camera calibration:
+        if "calibrate" in sys.argv:
+            print( "Will be performing camera calibration" )
+            CalibrateCamera()
     else:
         # We'll be loading the matrices from file:
         print( "Will be loading camera and distortion matrices from file" )
