@@ -303,11 +303,14 @@ def ImagePipeline( img ):
     radiiText = "Radius of Curvature = " + str( avgCurveRad ) + "(m)"
     cv2.putText( result, radiiText, ( 0, 50 ), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255 ), 2, cv2.LINE_AA )
 
-    posText = "Vehicle is " + str( round( offsetInMeters, 2 ) ) + "m"
+    posText = "Vehicle is " + str( round( abs( offsetInMeters ), 2 ) ) + "m"
+
+    # If the offset is positive, the lane is to the right
+    # of the center, so we're drifting left:
     if offsetInMeters > 0.0:
-        posText += " right of center"
-    else:
         posText += " left of center"
+    else:
+        posText += " right of center"
 
     cv2.putText( result, posText, ( 0, 100 ), cv2.FONT_HERSHEY_SIMPLEX, 2, ( 255, 255, 255 ), 2, cv2.LINE_AA )
 
@@ -468,9 +471,10 @@ def main():
                 nextImage = cv2.imread( imageName ) 
 
                 laneLines = ImagePipeline( nextImage )  
+
                 # The lane lines image is in BGR format.
                 laneLines = cv2.cvtColor( laneLines, cv2.COLOR_BGR2RGB )
-                
+
                 plt.imshow( laneLines )
                 plt.show()
 
