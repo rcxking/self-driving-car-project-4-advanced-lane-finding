@@ -109,7 +109,7 @@ As one can see, the lane lines now appear parallel w.r.t. each other in the warp
 
 4. Identifying Lane Lines
 
-I wrote a function "MarkLaneLines()" from lines 321 to 445 to find the lane lines and perform a 2nd-order polynomial fit for each of the left and right lanes.  This function implements a sliding window algorithm to find which pixels belong to the lanes.  The first step is to compute a histogram of the lower half of the warped perspective image; the highest peaks correspond to the starting locations of the left and right lane lines.  With these initial values, I compute 9 sliding windows for each lane, determining how many pixels lie within the window and determining whether the centers of these windows need to be shifted per iteration (lines 361 to 387).  Once this function completes, two lists containing the points belonging to each line are found (lines 390 and 391), and I then compute a 2nd-order polynomial for each of the best-fit lines through the lane points (lines 400 to 405).
+I wrote a function "MarkLaneLines()" from lines 324 to 448 to find the lane lines and perform a 2nd-order polynomial fit for each of the left and right lanes.  This function implements a sliding window algorithm to find which pixels belong to the lanes.  The first step is to compute a histogram of the lower half of the warped perspective image; the highest peaks correspond to the starting locations of the left and right lane lines.  With these initial values, I compute 9 sliding windows for each lane, determining how many pixels lie within the window and determining whether the centers of these windows need to be shifted per iteration (lines 364 to 390).  Once this function completes, two lists containing the points belonging to each line are found (lines 393 and 394), and I then compute a 2nd-order polynomial for each of the best-fit lines through the lane points (lines 403 to 408).
 
 The resulting image (with sliding windows and best-fit lines drawn) is as follows:
 
@@ -117,15 +117,15 @@ The resulting image (with sliding windows and best-fit lines drawn) is as follow
 
 5. Computing Radius of Curvature and Position of Vehicle
 
-Lines 408 to 421 show the computations needed to compute the radius of the curvature.  First, I am making the assumption that there are (30/720) meters per pixel in the Y-Direction and (3.7/700) meters per pixel in the X-Direction.  I will then convert the left and right (X, Y) points from pixels to meters.  Finally, the left and right curvature radii are calculated by performing another 2nd-ordered polynomial fit and then using the radii formula presented in the lectures (lines 417 and 419).
+Lines 411 to 424 show the computations needed to compute the radius of the curvature.  First, I am making the assumption that there are (30/720) meters per pixel in the Y-Direction and (3.7/700) meters per pixel in the X-Direction.  I will then convert the left and right (X, Y) points from pixels to meters.  Finally, the left and right curvature radii are calculated by performing another 2nd-ordered polynomial fit and then using the radii formula presented in the lectures (lines 420 and 422).
 
-To compute the turning radii, I simply averaged the left and right curvature radii (line 424).
+To compute the turning radii, I simply averaged the left and right curvature radii (line 427).
 
-To compute the position offsets, I averaged the X positions of the left and right lane, then subtracted the X-center of 640 (since the image widths are 1280; 1280 / 2 = 640).  Line 430.
+To compute the position offsets, I averaged the X positions of the left and right lane, then subtracted the X-center of 640 (since the image widths are 1280; 1280 / 2 = 640).  Line 433.
 
 6. Overlaying Lane and Curvature Results
 
-Finally, lines 287-312 are where the lane is plotted back and warped to the original image.  The resulting image is as follows:
+Finally, lines 287-315 are where the lane is plotted back and warped to the original image.  The resulting image is as follows:
 
 ![Pipeline Output][image8]       
 
