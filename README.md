@@ -16,12 +16,14 @@ In the Advanced Lane Finding Project, the following goals will be met:
 
 [image1]: ./output_images/distort.jpg "Distorted"
 [image2]: ./output_images/undistort.jpg "Undistorted"
-[image3]: ./output_images/undistorted_lanes.jpg "Undistorted Lanes"
-[image4]: ./output_images/binary_threshold.jpg "Binary Threshold"
-[image5]: ./output_images/roi.jpg "Region of Interest"
-[image6]: ./output_images/perspective.jpg "Perspective Transform"
-[image7]: ./output_images/lane_line_fit.png "Lane Line Fitting"
-[image8]: ./output_images/pipeline_output.jpg "Pipeline Output"
+[image3]: ./output_images/undistorted_lanes.png "Undistorted Lanes"
+[image4]: ./output_images/threshold_l.png "L-Channel Thresholding"
+[image5]: ./output_images/threshold_b.png "B-Channel Thresholding"
+[image6]: ./output_images/combined_threshold.png "Combined Thresholds"
+[image7]: ./output_images/roi.png "Region of Interest"
+[image8]: ./output_images/perspective.png "Perspective Transform"
+[image9]: ./output_images/lane_lines.png "Lane Line Fitting"
+[image10]: ./output_images/pipeline_output.png "Pipeline Output"
 
 Included Files
 ---
@@ -58,7 +60,7 @@ python lanedetect.py calibrate images video project_video.mp4
 
 Camera Calibration
 ---
-The code for my implementation of camera calibration is located on lines 47 to 103 in lanedetect.py (CalibrateCamera()).
+The code for my implementation of camera calibration is located on lines 58 to 114 in lanedetect.py (CalibrateCamera()).
 
 To perform camera calibration, I first prepare a list of "object points".  These object points are the (X, Y, Z) coordinates of the chessboards' corners.  Since the chessboard is on a flat image plan, I will be holding the Z-coordinate constant at Z = 0.  The origin of the chessboard corners is the upper-left corner; this will be (0,0,0).  The right-most corner will have object point (8, 5, 0), as there are 9 x 6 chessboard corners and we'll be using 0-indexing.
 
@@ -77,57 +79,73 @@ Image Pipeline (Single Images)
 
 1. Distortion Correction
 
-In lanedetect.py lines 248 to 254, I first load the distortion coefficients and the camera matrix from the pickled file "matrices.p".  I then undistort the input image via cv2.undistort() to produce the following undistorted image:
+In lanedetect.py lines 185 to 188, I first load the distortion coefficients and the camera matrix from the pickled file "matrices.p".  I then undistort the input image via cv2.undistort() to produce the following undistorted image:
 
 ![Undistorted Lanes][image3]
 
 2. Generating a Thresholded Binary Image
 
-I originally wrote up 4 functions that could be used to help with thresholding.  These 4 functions could perform: 1) Sobel Thresholding; 2) Gradient Magnitude Thresholding; 3) Gradient Orientation Thresholding; and 4) S-Channel Thresholding (after converting the image from BGR color space to HLS color space).  After some trial-and-error, I determined that I could get good results from just performing S-Channel and Gradient Magnitude Thresholding (lines 260 and 263).  I originally also wanted to add in gradient orientation thresholding, but my output images resulted in too much noise.
+I originally wrote up 4 functions that could be used to help with thresholding.  These 4 functions could perform: 1) Sobel Thresholding; 2) Gradient Magnitude Thresholding; 3) Gradient Orientation Thresholding; and 4) S-Channel Thresholding (after converting the image from BGR color space to HLS color space).  After some trial-and-error, I realized that these functions were not very reliable under very bright lighting conditions, so I transitioned over to using L and B-Channel Thresholding.
 
-Once these two thresholds are computed, I combine them into a single binary image using lines 266 and 267.
+On lines 124 to 134 I wrote a L-Channel thresholding function on images in the LUV color space.  This thresholding helped with identifying white lane lines.
+
+On lines 136 to 146 I wrote a B-Channel thresholding function on images in the LAB color space.  This thresholding helped with identifying yellow lane lines.
+
+After calling the L-Channel thresholding on line 202, the resulting threshold appears as such:
+
+![L-Channel Thresholding][image4]
+
+Notice that the white lane lines on the right are detected, but we have some flickering from the left yellow lane line.
+
+After calling the B-Channel thresholding on line 207, the resulting threshold appears as such:
+
+![B-Channel Thresholding][image5]
+
+Notice that all of the left yellow lane line and parts of the background are picked up. 
+
+Once these two thresholds are computed, I combine them into a single binary image using lines 211 and 212.
 
 An example of the resulting image is as follows:
 
-![Binary Threshold][image4]
+![Binary Threshold][image6]
 
-After this step, I was also interested in the pixels that corresponded to the lane lines.  To filter out the remaining data, I created a Region of Interest in the shape of a trapezoid.  These points were picked by using the GIMP image program (lines 270 and 272).
+After this step, I was also interested in the pixels that corresponded to the lane lines.  To filter out the remaining data, I created a Region of Interest in the shape of a trapezoid.  These points were picked by using the GIMP image program (lines 218 and 220).
 
 After applying this ROI, the thresholded image is as follows:
 
-![Region of Interest][image5]
+![Region of Interest][image7]
 
 3. Perspective Transformation
 
-To acquire a birds-eye view of the ROI Binary Thresholded image, I needed to perform a perspective transformation.  To do so, I found 4 points in the shape of a trapezoid on the ROI image that I wanted to warp; these points were picked by using the GIMP program (line 277).  Since I wanted the lane lines to be warped in such a way that the lines appeared parallel, I picked 4 destination points in the shape of a rectangle (line 278).  These destination points were chosen such that the start and ending points of each lane mapped to the top and bottom of the warped image.  The perspective transform is executed on lines 280 and 281.
+To acquire a birds-eye view of the ROI Binary Thresholded image, I needed to perform a perspective transformation.  To do so, I found 4 points in the shape of a trapezoid on the ROI image that I wanted to warp; these points were picked by using the GIMP program (line 225).  Since I wanted the lane lines to be warped in such a way that the lines appeared parallel, I picked 4 destination points in the shape of a rectangle (line 226).  These destination points were chosen such that the start and ending points of each lane mapped to the top and bottom of the warped image.  The perspective transform is executed on lines 228 and 229.
 
 A warped image is as follows:
 
-![Perspective Transform][image6]  
+![Perspective Transform][image8]  
 
 As one can see, the lane lines now appear parallel w.r.t. each other in the warped image.
 
 4. Identifying Lane Lines
 
-I wrote a function "MarkLaneLines()" from lines 324 to 448 to find the lane lines and perform a 2nd-order polynomial fit for each of the left and right lanes.  This function implements a sliding window algorithm to find which pixels belong to the lanes.  The first step is to compute a histogram of the lower half of the warped perspective image; the highest peaks correspond to the starting locations of the left and right lane lines.  With these initial values, I compute 9 sliding windows for each lane, determining how many pixels lie within the window and determining whether the centers of these windows need to be shifted per iteration (lines 364 to 390).  Once this function completes, two lists containing the points belonging to each line are found (lines 393 and 394), and I then compute a 2nd-order polynomial for each of the best-fit lines through the lane points (lines 403 to 408).
+I wrote a function "MarkLaneLines()" from lines 279 to 414 to find the lane lines and perform a 2nd-order polynomial fit for each of the left and right lanes.  This function implements a sliding window algorithm to find which pixels belong to the lanes.  The first step is to compute a histogram of the lower half of the warped perspective image; the highest peaks correspond to the starting locations of the left and right lane lines.  With these initial values, I compute 9 sliding windows for each lane, determining how many pixels lie within the window and determining whether the centers of these windows need to be shifted per iteration (lines 319 to 345).  Once this function completes, two lists containing the points belonging to each line are found (lines 348 and 349), and I then compute a 2nd-order polynomial for each of the best-fit lines through the lane points (lines 367 to 372).
 
 The resulting image (with sliding windows and best-fit lines drawn) is as follows:
 
-![Lane Line Fitting][image7]
+![Lane Line Fitting][image9]
 
 5. Computing Radius of Curvature and Position of Vehicle
 
-Lines 411 to 424 show the computations needed to compute the radius of the curvature.  First, I am making the assumption that there are (30/720) meters per pixel in the Y-Direction and (3.7/700) meters per pixel in the X-Direction.  I will then convert the left and right (X, Y) points from pixels to meters.  Finally, the left and right curvature radii are calculated by performing another 2nd-ordered polynomial fit and then using the radii formula presented in the lectures (lines 420 and 422).
+Lines 381 to 391 show the computations needed to compute the radius of the curvature.  First, I am making the assumption that there are (30/720) meters per pixel in the Y-Direction and (3.7/700) meters per pixel in the X-Direction.  I will then convert the left and right (X, Y) points from pixels to meters.  Finally, the left and right curvature radii are calculated by performing another 2nd-ordered polynomial fit and then using the radii formula presented in the lectures (lines 384 and 386).
 
-To compute the turning radii, I simply averaged the left and right curvature radii (line 427).
+To compute the turning radii, I simply averaged the left and right curvature radii (line 391).
 
-To compute the position offsets, I averaged the X positions of the left and right lane, then subtracted the X-center of 640 (since the image widths are 1280; 1280 / 2 = 640).  Line 433.
+To compute the position offsets, I averaged the X positions of the bottom-most detection of the left and right lanes, then subtracted the X-center of 640 (since the image widths are 1280; 1280 / 2 = 640).  Lines 397 to 400.
 
 6. Overlaying Lane and Curvature Results
 
-Finally, lines 287-315 are where the lane is plotted back and warped to the original image.  The resulting image is as follows:
+Finally, lines 235-266 are where the lane is plotted back and warped to the original image.  The resulting image is as follows:
 
-![Pipeline Output][image8]       
+![Pipeline Output][image10]       
 
 Pipeline (Video)
 ---
