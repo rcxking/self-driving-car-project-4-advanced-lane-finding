@@ -21,11 +21,18 @@ CAMERA_CAL = "./camera_cal/"
 TEST_IMAGES = "./test_images/"
 PICKLED_MATRICES = "./matrices.p"
 
+# Set this flag to True to display images:
+displayImages = False
+
 '''
 Helper function to display an image with
 PyPlot:
 '''
-def DisplayImage( img ):
+def DisplayImage( img, overrideDisplayImages = False ):
+
+    if not displayImages and not overrideDisplayImages:
+        return
+
     plt.imshow( img )
     plt.show()
 
@@ -34,6 +41,10 @@ Helper function to display a grayscale image
 with Pyplot:
 '''
 def DisplayGrayImage( img ):
+
+    if not displayImages:
+        return
+
     plt.imshow( img, cmap='gray' )
     plt.show()
 
@@ -103,113 +114,36 @@ def CalibrateCamera():
     print( "Done calibrating camera" )
 
 '''
-Helper function to compute the absolute X and Y gradients
-via the Sobel Operator.
+The following functions perform thresholding on the L-Channel
+in LUV color space and on the B-Channel in LAB color space.
 
-This function returns a binary (0 or 1) valued image where pixels
-marked with a 1 fall between thresh_min and thresh_man. 
+The L-Channel thresholding is used to help identify white lane
+lines while the B-Channel thresholding is used to help identify
+yellow lane lines.
 '''
-def AbsSobelThreshold(img, orient='x', thresh_min=0, thresh_max=255):
+def ThresholdLChannel( img, threshMin=0, threshMax=255 ):
+
+    # Convert the BGR image to LUV Color Space:
+    luv = cv2.cvtColor( img, cv2.COLOR_BGR2LUV )
+
+    # Acquire the L-Channel and apply the thresholding:
+    l = luv[ :, :, 0 ]
+    binaryOutput = np.zeros_like( l )
+    binaryOutput[ ( l > threshMin ) & ( l <= threshMax ) ]  = 1
     
-    # Convert the image to grayscale:
-    grayImg = cv2.cvtColor( img, cv2.COLOR_BGR2GRAY )
-
-    if orient == 'x':
-        # Compute X-Gradient:
-        sobel = cv2.Sobel( grayImg, cv2.CV_64F, 1, 0 )
-    else:
-        # Compute Y-Gradient:
-        sobel = cv2.Sobel( grayImg, cv2.CV_64F, 0, 1 )
-
-    # Take the absolute value of the gradient:
-    absSobel = np.absolute( sobel )
-
-    # Scale the values to the range of 0-255:
-    scaledSobel = np.uint8( 255 * absSobel / np.max( absSobel ) )
-
-    # Finally, mark the values where thresh_min <= scaledSobel <= thresh_max:
-    binaryOutput = np.zeros_like( scaledSobel )
-    binaryOutput[ ( scaledSobel >= thresh_min ) & ( scaledSobel <= thresh_max ) ] = 1
-
     return binaryOutput
 
-'''
-Helper function to perform gradient magnitude thresholding.
+def ThresholdBChannel( img, threshMin=0, threshMax=255 ):
 
-This function takes in a BGR image and computes the X and Y gradients
-via the Sobel operator.  Afterwards, the gradient magnitude is calculated,
-and any pixel that falls between the threshold is set as 1. 
-'''
-def GradMagThreshold( img, kernelSize = 3, threshMin = 0, threshMax = 255 ):
+    # Convert the BGR image to LAB Color Space:
+    lab = cv2.cvtColor( img, cv2.COLOR_BGR2LAB )
 
-    # Convert the BGR image to grayscale:
-    grayImg = cv2.cvtColor( img, cv2.COLOR_BGR2GRAY )
-
-    # Compute the X and Y Gradients:
-    xSobel = cv2.Sobel( grayImg, cv2.CV_64F, 1, 0, ksize = kernelSize )
-    ySobel = cv2.Sobel( grayImg, cv2.CV_64F, 0, 1, ksize = kernelSize )
-
-    # Compute the gradient magnitude:
-    gradMag = np.sqrt( xSobel**2 + ySobel**2 )  
-
-    # Scale the values to the range of 0-255:
-    scaled = np.uint8( 255 * gradMag / np.max( gradMag ) )
-
-    # Mark the values where threshMin <= scaled <= threshMax:
-    binaryOutput = np.zeros_like( scaled )
-    binaryOutput[ ( scaled >= threshMin ) & ( scaled <= threshMax ) ] = 1 
+    # Acquire the B-Channel and apply the thresholding:
+    b = lab[ :, :, 2 ]
+    binaryOutput = np.zeros_like( b )
+    binaryOutput[ ( b > threshMin ) & ( b <= threshMax ) ] = 1
 
     return binaryOutput
-
-'''
-Helper function to perform thresholding via gradient
-orientation.
-
-This function takes in a BGR image and computes the orientation
-of the gradient in each pixel in radians.  The resulting image
-is set to 1 if the orientation falls between threshMin and threshMax.
-'''
-def GradOrientThreshold( img, kernelSize = 3, threshMin = 0, threshMax = np.pi / 2 ):
-
-    # Convert the BGR images to grayscale:
-    grayImg = cv2.cvtColor( img, cv2.COLOR_BGR2GRAY )
-
-    # Compute the X and Y gradients:
-    xSobel = cv2.Sobel( grayImg, cv2.CV_64F, 1, 0, ksize = kernelSize )
-    ySobel = cv2.Sobel( grayImg, cv2.CV_64F, 0, 1, ksize = kernelSize )
-
-    # Compute the absolute gradients:
-    absXSobel = np.absolute( xSobel )
-    absYSobel = np.absolute( ySobel )
-
-    # Compute the direction of the gradient:
-    gradDir = np.arctan2( absYSobel, absXSobel )
-
-    # Apply the mask:
-    binaryOutput = np.zeros_like( gradDir )
-    binaryOutput[ ( gradDir >= threshMin ) & ( gradDir <= threshMax ) ] = 1
-
-    return binaryOutput
-
-'''
-This function converts a BGR image to HLS color space, and then
-applies a threshold on the Saturation (S) channel.
-
-The output of this function is a binary image where the values
-marked with 1 are where the S-Values fall between threshMin
-and threshMax.
-'''
-def ThresholdSChannel( img, threshMin=0, threshMax=255 ):
-
-    # Convert the BGR image to HLS Color Space:
-    hls = cv2.cvtColor( img, cv2.COLOR_BGR2HLS )
-
-    # Acquire the S-Channel and apply the thresholding mask:
-    s = hls[ :, :, 2 ]
-    binaryOutput = np.zeros_like( s )
-    binaryOutput[ ( s > threshMin ) & ( s <= threshMax ) ] = 1
-
-    return binaryOutput 
 
 '''
 Helper function to apply a Region of Interest (ROI)
@@ -241,6 +175,9 @@ Image Pipeline.  Given an input image, the camera
 calibration matrix, and the distortion coefficients,
 find and mark the lane lines.  Return the image with the
 lane lines marked.
+
+IMPORTANT: This function expects an image in RGB color space.
+The output of this function will also be an image in RGB color space.
 '''
 def ImagePipeline( img ):
 
@@ -250,35 +187,49 @@ def ImagePipeline( img ):
     dist = pickledMatrix[ "dist" ]
     mtx = pickledMatrix[ "mtx" ]
 
+    img = cv2.cvtColor( img, cv2.COLOR_RGB2BGR )
+
     # First, undistort the image:
     undistort = cv2.undistort( img, mtx, dist, None, mtx )
+    cvtImage = cv2.cvtColor( undistort, cv2.COLOR_BGR2RGB )
+    DisplayImage( cvtImage )
 
     # Now perform thresholding to eliminate noise and to extract
     # the lane lines.
 
-    # Perform Color Thresholding on the S-Channel:
-    sThresh = ThresholdSChannel( undistort, 150, 255 )
+    # Perform Color Thresholding on the L-Channel in LUV color space.
+    # This allows better identifying of white lines:
+    lThresh = ThresholdLChannel( undistort, 215, 255 )
+    DisplayGrayImage( lThresh )
 
-    # Perform Gradient Magnitude Thresholding:
-    gradMag = GradMagThreshold( undistort, 5, 30, 255 )  
+    # Perform Color Thresholding on the B-Channel in LAB color space.
+    # This allows better identifying of yellow lines:
+    bThresh = ThresholdBChannel( undistort, 145, 255 )
+    DisplayGrayImage( bThresh )
 
     # Now combine the different thresholds into 1 image:
-    combined = np.zeros_like( sThresh )
-    combined[ ( ( sThresh == 1 ) | ( gradMag == 1 ) ) ] = 1 
+    combined = np.zeros_like( lThresh )
+    combined[ ( ( lThresh == 1 ) | ( bThresh == 1 ) ) ] = 1
+
+    # DEBUG ONLY: Display the combined binary image:
+    DisplayGrayImage( combined ) 
 
     # Apply a ROI mask to trim areas where the lane lines aren't:
-    roiVertices = np.array( [ [ ( 308, 632 ), ( 615, 427 ), ( 700, 427 ), ( 1062, 632 ) ] ], dtype=np.int32 )
+    roiVertices = np.array( [ [ ( 186, 704 ), ( 615, 427 ), ( 700, 427 ), ( 1150, 704 ) ] ], dtype=np.int32 )
 
     combined = RegionOfInterest( combined, roiVertices )
+    DisplayGrayImage( combined )
 
-    # Now apply a perspective transform to get a bird's eye view.
-    # Images are 1280 x 720 px.
-
-    srcPoints = np.float32( [ [ 297, 656 ], [ 596, 450 ], [ 683, 450 ], [ 1013, 656 ] ] )     
+    # Now apply a Perspective Transformation to the image to make the lines
+    # appear as parallel.  Points picked via the GIMP image program. 
+    srcPoints = np.float32( [ [ 230, 703  ], [ 581, 460 ], [ 700, 460 ], [ 1070, 703 ] ] )
     dstPoints = np.float32( [ [ 375, 720 ], [ 375, 0   ], [ 1000,  0 ], [ 1000, 720 ] ] )
 
     M = cv2.getPerspectiveTransform( srcPoints, dstPoints )
     warped = cv2.warpPerspective( combined, M, ( combined.shape[ 1 ], combined.shape[ 0 ] ), flags = cv2.INTER_LINEAR )
+
+    # DEBUG ONLY: Display the warped image:
+    DisplayGrayImage( warped )
 
     # Acquire the lane line computations (including the curvature and offset in meters) 
     laneLines, left_fitx, right_fitx, ploty, avgCurveRad, offsetInMeters = MarkLaneLines( warped )
@@ -314,7 +265,11 @@ def ImagePipeline( img ):
 
     cv2.putText( result, posText, ( 0, 100 ), cv2.FONT_HERSHEY_SIMPLEX, 2, ( 255, 255, 255 ), 2, cv2.LINE_AA )
 
-     
+    # Convert the image back to RGB color space:
+    result = cv2.cvtColor( result, cv2.COLOR_BGR2RGB ) 
+    DisplayImage( result )
+
+
     return result
 
 '''
@@ -399,6 +354,15 @@ def MarkLaneLines( warped ):
     rightX = nonZeroX[ right_lane_inds ]
     rightY = nonZeroY[ right_lane_inds ]
 
+    '''
+    print( len( leftX ) )
+    print( len( leftY ) )
+    print( len( rightX ) )
+    print( len( rightY ) )
+    '''
+
+    #if leftX or leftY or rightX 
+
     # Fit a 2nd Order Polynomial:
     leftFit = np.polyfit( leftY, leftX, 2 )
     rightFit = np.polyfit( rightY, rightX, 2 )
@@ -426,24 +390,26 @@ def MarkLaneLines( warped ):
     # Average the turning radii:
     avgCurveRad = int( ( left_curverad + right_curverad ) / 2 )
    
-    # Compute the position offset of the car:
-    avgLeftLaneX = np.mean( leftX )
-    avgRightLaneX = np.mean( rightX )
-    offsetInPixels = ( ( avgLeftLaneX + avgRightLaneX ) / 2 ) - 640
-    offsetInMeters = offsetInPixels * xm_per_pix 
+    '''
+    Compute the position offset of the car.  To compute the offset, we'll look
+    for the bottom-most positions of the left and right lane and average them.    
+    '''
+    bottomLeftX = leftX[ leftY.argmax() ]
+    bottomRightX = rightX[ rightY.argmax() ]
+    offsetInPixels = ( ( bottomLeftX + bottomRightX ) / 2 ) - 640
+    offsetInMeters = offsetInPixels * xm_per_pix
 
     # Enable this next section if you want to see sliding windows and lane fitting:
-    '''
-    outputImage[ nonZeroY[ left_lane_inds ], nonZeroX[ left_lane_inds ] ] = [ 255, 0, 0 ]
-    outputImage[ nonZeroY[ right_lane_inds ], nonZeroX[ right_lane_inds ] ] = [ 0, 0, 255 ]
-
-    plt.imshow( outputImage )
-    plt.plot( left_fitx, ploty, color = 'yellow' )
-    plt.plot( right_fitx, ploty, color = 'yellow' )
-    plt.xlim( 0, 1280 )
-    plt.ylim( 720, 0 )
-    plt.show() 
-    '''
+    if displayImages:
+        outputImage[ nonZeroY[ left_lane_inds ], nonZeroX[ left_lane_inds ] ] = [ 255, 0, 0 ]
+        outputImage[ nonZeroY[ right_lane_inds ], nonZeroX[ right_lane_inds ] ] = [ 0, 0, 255 ]
+    
+        plt.imshow( outputImage )
+        plt.plot( left_fitx, ploty, color = 'yellow' )
+        plt.plot( right_fitx, ploty, color = 'yellow' )
+        plt.xlim( 0, 1280 )
+        plt.ylim( 720, 0 )
+        plt.show() 
 
     return outputImage, left_fitx, right_fitx, ploty, avgCurveRad, offsetInMeters 
 
@@ -466,17 +432,18 @@ def main():
             images = glob.glob( TEST_IMAGES + "*.jpg" )
             images.sort() 
             for imageName in images:
-           
+
+                print( "Processing " + imageName )
+
                 # Open the image in BGR color space: 
                 nextImage = cv2.imread( imageName ) 
 
+                # The image pipeline is expecting an RGB image:
+                nextImage = cv2.cvtColor( nextImage, cv2.COLOR_BGR2RGB ) 
+
                 laneLines = ImagePipeline( nextImage )  
 
-                # The lane lines image is in BGR format.
-                laneLines = cv2.cvtColor( laneLines, cv2.COLOR_BGR2RGB )
-
-                plt.imshow( laneLines )
-                plt.show()
+                DisplayImage( laneLines, True )
 
         # Run the image pipeline on the specified video (found in the same directory as this script )
         if "video" in sys.argv:
